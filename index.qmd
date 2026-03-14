@@ -1,0 +1,420 @@
+---
+title: "IMP>ACT Survey Platform"
+format:
+  html:
+    theme: none
+    css: styles.css
+    self-contained: false
+    page-layout: full
+    include-in-header:
+      text: |
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Serif+Display&display=swap" rel="stylesheet">
+        <script src="translations.js"></script>
+---
+
+```{=html}
+<div class="page-wrapper">
+
+  <!-- Header: altijd zichtbaar -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo-area">
+        <span class="logo-dot"></span>
+        <span class="logo-text" data-i18n="logoText">Survey Platform</span>
+      </div>
+      <nav class="lang-switcher" id="lang-switcher" aria-label="Language selector"></nav>
+    </div>
+    <p class="header-tagline" data-i18n="headerTagline">Share and use validated measurement instruments</p>
+  </header>
+
+  <!-- =============================================
+       RESPONDENT-MODUS
+       Wordt getoond als ?form=ID aanwezig is in de URL.
+       De bevraging laadt automatisch, geen invoerveld zichtbaar.
+       ============================================= -->
+  <div id="respondent-mode" style="display:none;">
+    <div class="respondent-wrapper">
+      <div id="loading-indicator-resp" class="loading loading-full">
+        <div class="loading-spinner"></div>
+        <span data-i18n="loadingText">Loading survey...</span>
+      </div>
+      <iframe
+        id="tally-frame-resp"
+        src=""
+        width="100%"
+        height="100%"
+        frameborder="0"
+        marginheight="0"
+        marginwidth="0"
+        title="Survey"
+        style="display:none; min-height:100vh;"
+        onload="iframeLoadedResp()"
+      ></iframe>
+    </div>
+  </div>
+
+  <!-- =============================================
+       BEHEER-MODUS
+       Wordt getoond als er GEEN ?form=ID in de URL staat.
+       Voor organisaties om hun link te testen.
+       ============================================= -->
+  <div id="admin-mode" style="display:none;">
+
+    <!-- Intro sectie -->
+    <section class="intro-section">
+      <div class="intro-inner">
+        <h1 class="main-title" data-i18n="mainTitle">Load your survey</h1>
+        <p class="main-subtitle">
+          <span data-i18n="mainSubtitle">Create a free account on Tally.so, import the template, and paste your personal link below.</span>
+          <a href="https://tally.so" target="_blank" class="link">Tally.so</a>
+        </p>
+
+        <div class="steps-row">
+          <div class="step">
+            <span class="step-num">1</span>
+            <span class="step-text" data-i18n="step1">Create a free account on Tally.so</span>
+          </div>
+          <div class="step-arrow">→</div>
+          <div class="step">
+            <span class="step-num">2</span>
+            <span class="step-text" data-i18n="step2">Import the survey template (.json)</span>
+          </div>
+          <div class="step-arrow">→</div>
+          <div class="step">
+            <span class="step-num">3</span>
+            <span class="step-text" data-i18n="step3">Copy your Tally link and paste it below</span>
+          </div>
+        </div>
+
+        <div class="template-download">
+          <span class="download-icon">⬇</span>
+          <span data-i18n="downloadLabel">Download the survey template:</span>
+          <a href="survey-template.json" download class="link bold">survey-template.json</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- URL invoer -->
+    <section class="input-section">
+      <div class="input-inner">
+
+        <!-- Uitlegbox voor de organisatie -->
+        <div class="admin-info-box">
+          <strong data-i18n="adminInfoTitle">📋 For your organisation</strong>
+          <p data-i18n="adminInfoText">After loading your survey below, copy the generated link and share it with your respondents. They will land directly on the survey — no extra steps needed.</p>
+        </div>
+
+        <label for="tally-url" class="input-label" data-i18n="inputLabel">Your Tally link</label>
+        <div class="input-row">
+          <input
+            type="text"
+            id="tally-url"
+            placeholder="https://tally.so/r/yourcode"
+            class="url-input"
+            autocomplete="off"
+            spellcheck="false"
+          >
+          <button onclick="loadSurveyAdmin()" class="load-btn" id="load-btn">
+            <span class="btn-text" data-i18n="btnLoad">Load survey</span>
+            <span class="btn-arrow">→</span>
+          </button>
+        </div>
+        <p class="input-hint">
+          <span data-i18n="inputHint">Both formats work:</span>
+          <code>https://tally.so/r/abc123</code> or <code>https://tally.so/embed/abc123</code>
+        </p>
+        <div id="error-msg" class="error-msg" style="display:none;" data-i18n="errorMsg">
+          ⚠ Invalid link. Use a Tally link in the format: tally.so/r/... or tally.so/embed/...
+        </div>
+      </div>
+    </section>
+
+    <!-- Survey preview + deelbare link -->
+    <section id="survey-section" class="survey-section" style="display:none;">
+      <div class="survey-inner">
+        <div class="survey-header">
+          <span class="survey-badge" data-i18n="surveyBadge">Survey loaded</span>
+          <button onclick="resetSurvey()" class="reset-btn" data-i18n="resetBtn">✕ Use a different link</button>
+        </div>
+
+        <!-- Deelbare link box — dit is het belangrijkste voor de organisatie -->
+        <div class="share-box">
+          <p class="share-box-title" data-i18n="shareTitle">🔗 Share this link with your respondents</p>
+          <p class="share-box-subtitle" data-i18n="shareSubtitle">Respondents land directly on the survey, in full width, with consistent layout.</p>
+          <div class="share-link-row">
+            <input type="text" id="share-link-input" class="share-link-input" readonly>
+            <button onclick="copyShareLink()" class="copy-btn" id="copy-btn">
+              <span data-i18n="copyBtn">Copy link</span>
+            </button>
+          </div>
+          <p id="copy-confirm" class="copy-confirm" style="display:none;" data-i18n="copyConfirm">✓ Link copied to clipboard!</p>
+        </div>
+
+        <!-- iframe preview -->
+        <p class="preview-label" data-i18n="previewLabel">Preview (as respondents will see it):</p>
+        <div class="iframe-wrapper" id="iframe-wrapper">
+          <div id="loading-indicator-admin" class="loading">
+            <div class="loading-spinner"></div>
+            <span data-i18n="loadingText">Loading survey...</span>
+          </div>
+          <iframe
+            id="tally-frame-admin"
+            src=""
+            width="100%"
+            height="800"
+            frameborder="0"
+            marginheight="0"
+            marginwidth="0"
+            title="Survey preview"
+            style="display:none;"
+            onload="iframeLoadedAdmin()"
+          ></iframe>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /admin-mode -->
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <p data-i18n="footer">Developed as an open measurement instrument · Free to use by all organisations</p>
+  </footer>
+
+</div>
+
+<script src="https://tally.so/widgets/embed.js" async></script>
+
+<script>
+// ================================================
+// TAALWISSELAAR
+// ================================================
+
+let currentLang = DEFAULT_LANG;
+
+function detectBrowserLang() {
+  const lang = (navigator.language || navigator.userLanguage || '').slice(0, 2).toLowerCase();
+  return LANGUAGE_ORDER.includes(lang) ? lang : DEFAULT_LANG;
+}
+
+function buildLangSwitcher() {
+  const container = document.getElementById('lang-switcher');
+  container.innerHTML = '';
+  LANGUAGE_ORDER.forEach(code => {
+    const t = TRANSLATIONS[code];
+    const btn = document.createElement('button');
+    btn.className = 'lang-btn' + (code === currentLang ? ' active' : '');
+    btn.setAttribute('title', t.langName);
+    btn.setAttribute('aria-label', t.langName);
+    btn.innerHTML = `<span class="lang-flag">${t.flag}</span><span class="lang-code">${code.toUpperCase()}</span>`;
+    btn.addEventListener('click', () => switchLang(code));
+    container.appendChild(btn);
+  });
+}
+
+function applyTranslations(lang) {
+  const t = TRANSLATIONS[lang];
+  if (!t) return;
+  document.documentElement.lang = t.htmlLang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    if (t[key] !== undefined) el.textContent = t[key];
+  });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => {
+    const key = el.getAttribute('data-i18n-html');
+    if (t[key] !== undefined) el.innerHTML = t[key];
+  });
+  const input = document.getElementById('tally-url');
+  if (input) input.placeholder = t.placeholder;
+}
+
+function switchLang(lang) {
+  currentLang = lang;
+  applyTranslations(lang);
+  buildLangSwitcher();
+  try { sessionStorage.setItem('surveyLang', lang); } catch(e) {}
+}
+
+// ================================================
+// URL PARAMETER DETECTIE
+// ================================================
+
+function getFormIdFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const formParam = params.get('form');
+  if (formParam && /^[a-zA-Z0-9]+$/.test(formParam)) return formParam;
+  return null;
+}
+
+function buildShareUrl(formId) {
+  // Bouw de deelbare URL op gebaseerd op de huidige paginaURL
+  const base = window.location.origin + window.location.pathname;
+  return `${base}?form=${formId}`;
+}
+
+// ================================================
+// RESPONDENT-MODUS
+// Laadt automatisch als ?form=ID aanwezig is
+// ================================================
+
+function startRespondentMode(formId) {
+  document.getElementById('respondent-mode').style.display = 'block';
+  document.getElementById('admin-mode').style.display = 'none';
+
+  // Voeg Tally embed URL-parameters toe voor optimale weergave:
+  // - alignLeft=1     : meer ruimte voor items in matrix-vragen
+  // - transparentBackground=1 : naadloze integratie in de pagina
+  // - dynamicHeight=1 : past hoogte aan aan de inhoud
+  const embedUrl = `https://tally.so/embed/${formId}?alignLeft=1&transparentBackground=1&dynamicHeight=1`;
+
+  const iframe = document.getElementById('tally-frame-resp');
+  iframe.src = embedUrl;
+
+  if (typeof Tally !== 'undefined') Tally.loadEmbeds();
+}
+
+function iframeLoadedResp() {
+  document.getElementById('loading-indicator-resp').style.display = 'none';
+  document.getElementById('tally-frame-resp').style.display = 'block';
+}
+
+// ================================================
+// BEHEER-MODUS
+// Voor organisaties om hun link in te geven en
+// de deelbare respondenten-URL te genereren
+// ================================================
+
+function startAdminMode() {
+  document.getElementById('respondent-mode').style.display = 'none';
+  document.getElementById('admin-mode').style.display = 'block';
+}
+
+function extractFormId(url) {
+  url = (url || '').trim();
+  const patterns = [
+    /tally\.so\/r\/([a-zA-Z0-9]+)/,
+    /tally\.so\/embed\/([a-zA-Z0-9]+)/,
+    /^([a-zA-Z0-9]+)$/
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
+function loadSurveyAdmin() {
+  const t = TRANSLATIONS[currentLang];
+  const input = document.getElementById('tally-url').value;
+  const errorMsg = document.getElementById('error-msg');
+  const btn = document.getElementById('load-btn');
+  const btnText = btn.querySelector('.btn-text');
+
+  errorMsg.style.display = 'none';
+
+  const formId = extractFormId(input);
+  if (!formId) {
+    errorMsg.style.display = 'block';
+    return;
+  }
+
+  // Bouw URLs op
+  const embedUrl = `https://tally.so/embed/${formId}?alignLeft=1&transparentBackground=1&dynamicHeight=1`;
+  const shareUrl = buildShareUrl(formId);
+
+  // Vul de deelbare link in
+  document.getElementById('share-link-input').value = shareUrl;
+  document.getElementById('copy-confirm').style.display = 'none';
+
+  // Laad de iframe preview
+  const iframe = document.getElementById('tally-frame-admin');
+  iframe.src = embedUrl;
+  iframe.style.display = 'none';
+
+  document.getElementById('survey-section').style.display = 'block';
+  document.getElementById('loading-indicator-admin').style.display = 'flex';
+
+  setTimeout(() => {
+    document.getElementById('survey-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 100);
+
+  if (typeof Tally !== 'undefined') Tally.loadEmbeds();
+
+  btn.classList.add('loading');
+  btnText.textContent = t.btnLoading;
+  setTimeout(() => {
+    btn.classList.remove('loading');
+    btnText.textContent = t.btnLoad;
+  }, 3000);
+}
+
+function iframeLoadedAdmin() {
+  document.getElementById('loading-indicator-admin').style.display = 'none';
+  document.getElementById('tally-frame-admin').style.display = 'block';
+}
+
+function copyShareLink() {
+  const t = TRANSLATIONS[currentLang];
+  const input = document.getElementById('share-link-input');
+  const confirm = document.getElementById('copy-confirm');
+  const btn = document.getElementById('copy-btn');
+
+  navigator.clipboard.writeText(input.value).then(() => {
+    confirm.style.display = 'block';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      confirm.style.display = 'none';
+      btn.classList.remove('copied');
+    }, 3000);
+  }).catch(() => {
+    // Fallback voor browsers zonder clipboard API
+    input.select();
+    document.execCommand('copy');
+    confirm.style.display = 'block';
+    setTimeout(() => { confirm.style.display = 'none'; }, 3000);
+  });
+}
+
+function resetSurvey() {
+  document.getElementById('survey-section').style.display = 'none';
+  document.getElementById('tally-url').value = '';
+  document.getElementById('tally-frame-admin').src = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ================================================
+// INITIALISATIE
+// ================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+  // Bepaal taal
+  let startLang = DEFAULT_LANG;
+  try {
+    const stored = sessionStorage.getItem('surveyLang');
+    startLang = (stored && LANGUAGE_ORDER.includes(stored)) ? stored : detectBrowserLang();
+  } catch(e) {
+    startLang = detectBrowserLang();
+  }
+  currentLang = startLang;
+  buildLangSwitcher();
+  applyTranslations(currentLang);
+
+  // Detecteer modus op basis van URL-parameter
+  const formId = getFormIdFromUrl();
+  if (formId) {
+    startRespondentMode(formId);
+  } else {
+    startAdminMode();
+  }
+
+  // Enter-toets op invoerveld
+  const urlInput = document.getElementById('tally-url');
+  if (urlInput) {
+    urlInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadSurveyAdmin();
+    });
+  }
+});
+</script>
+```
