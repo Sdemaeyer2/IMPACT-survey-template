@@ -233,6 +233,12 @@ function switchLang(lang) {
   currentLang = lang;
   applyTranslations(lang);
   buildLangSwitcher();
+  // Surveytaal volgt de UI-taal mee, tenzij de organisatie
+  // al een expliciete keuze heeft gemaakt via de keuzeknoppen
+  if (!surveyLangManuallySet) {
+    selectedSurveyLang = lang;
+    buildSurveyLangSelector();
+  }
   try { sessionStorage.setItem('surveyLang', lang); } catch(e) {}
 }
 
@@ -247,10 +253,47 @@ function getFormIdFromUrl() {
   return null;
 }
 
-function buildShareUrl(formId) {
-  // Bouw de deelbare URL op gebaseerd op de huidige paginaURL
+function getLangFromUrl() {
+  // Lees ?language= uit de Netlify-pagina URL
+  const params = new URLSearchParams(window.location.search);
+  const lang = (params.get('language') || '').toLowerCase();
+  return LANGUAGE_ORDER.includes(lang) ? lang : null;
+}
+
+// Geselecteerde taal van de survey (volgt UI-taal tenzij handmatig gekozen)
+let selectedSurveyLang = DEFAULT_LANG;
+let surveyLangManuallySet = false;
+
+function buildSurveyLangSelector() {
+  const container = document.getElementById('survey-lang-options');
+  if (!container) return;
+  container.innerHTML = '';
+  LANGUAGE_ORDER.forEach(code => {
+    const t = TRANSLATIONS[code];
+    const btn = document.createElement('button');
+    btn.className = 'survey-lang-btn' + (code === selectedSurveyLang ? ' active' : '');
+    btn.setAttribute('type', 'button');
+    btn.setAttribute('title', t.langName);
+    btn.innerHTML = `<span class="lang-flag">${t.flag}</span> <span>${t.langName}</span>`;
+    btn.addEventListener('click', () => {
+      selectedSurveyLang = code;
+      surveyLangManuallySet = true;
+      buildSurveyLangSelector();
+      // Herbereken de share-link als die al zichtbaar is
+      const shareInput = document.getElementById('share-link-input');
+      if (shareInput && shareInput.value) {
+        const currentForm = new URLSearchParams(shareInput.value.split('?')[1] || '').get('form');
+        if (currentForm) shareInput.value = buildShareUrl(currentForm, selectedSurveyLang);
+      }
+    });
+    container.appendChild(btn);
+  });
+}
+
+function buildShareUrl(formId, lang) {
+  // Voeg zowel ?form= als ?language= toe aan de respondenten-URL
   const base = window.location.origin + window.location.pathname;
-  return `${base}?form=${formId}`;
+  return `${base}?form=${formId}&language=${lang}`;
 }
 
 // ================================================
@@ -262,11 +305,11 @@ function startRespondentMode(formId) {
   document.getElementById('respondent-mode').style.display = 'block';
   document.getElementById('admin-mode').style.display = 'none';
 
-  // Voeg Tally embed URL-parameters toe voor optimale weergave:
-  // - alignLeft=1     : meer ruimte voor items in matrix-vragen
-  // - transparentBackground=1 : naadloze integratie in de pagina
-  // - dynamicHeight=1 : past hoogte aan aan de inhoud
-  const embedUrl = `https://tally.so/embed/${formId}?alignLeft=1&transparentBackground=1&dynamicHeight=1`;
+  // Haal de taalwaarde op uit de URL (?language=nl)
+  // en geef die mee aan de Tally embed-URL zodat het hidden field
+  // 'language' in Tally de waarde automatisch ontvangt.
+  const lang = getLangFromUrl() || currentLang;
+  const embedUrl = `https://tally.so/embed/${formId}?alignLeft=1&transparentBackground=1&dynamicHeight=1&language=${lang}`;
 
   const iframe = document.getElementById('tally-frame-resp');
   iframe.src = embedUrl;
@@ -319,9 +362,10 @@ function loadSurveyAdmin() {
     return;
   }
 
-  // Bouw URLs op
-  const embedUrl = `https://tally.so/embed/${formId}?alignLeft=1&transparentBackground=1&dynamicHeight=1`;
-  const shareUrl = buildShareUrl(formId);
+  // Bouw URLs op — geef de geselecteerde surveytaal mee
+  // zodat het Tally hidden field 'language' correct wordt ingevuld
+  const embedUrl = `https://tally.so/embed/${formId}?alignLeft=1&transparentBackground=1&dynamicHeight=1&language=${selectedSurveyLang}`;
+  const shareUrl = buildShareUrl(formId, selectedSurveyLang);
 
   // Vul de deelbare link in
   document.getElementById('share-link-input').value = shareUrl;
@@ -400,9 +444,21 @@ document.addEventListener('DOMContentLoaded', () => {
   buildLangSwitcher();
   applyTranslations(currentLang);
 
+  // Surveytaal start op dezelfde taal als de UI-taal
+  selectedSurveyLang = startLang;
+  surveyLangManuallySet = false;
+  buildSurveyLangSelector();
+
   // Detecteer modus op basis van URL-parameter
   const formId = getFormIdFromUrl();
   if (formId) {
+    // Respondent-modus: overschrijf UI-taal met ?language= als die aanwezig is
+    const urlLang = getLangFromUrl();
+    if (urlLang) {
+      currentLang = urlLang;
+      buildLangSwitcher();
+      applyTranslations(currentLang);
+    }
     startRespondentMode(formId);
   } else {
     startAdminMode();
